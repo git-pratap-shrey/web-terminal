@@ -22,7 +22,7 @@
   term.focus();
 
   const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-  const ws = new WebSocket(proto + location.host);
+  let ws;
 
   function setStatus(online, label) {
     statusDot.classList.toggle('online', online);
@@ -31,24 +31,36 @@
   }
 
   function sendResize() {
-    if (ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
   }
 
   function sendInput(data) {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'input', data }));
     }
   }
 
-  ws.addEventListener('open', () => {
-    setStatus(true, 'connected');
-    fitAddon.fit();
-    sendResize();
-  });
-  ws.addEventListener('close', () => setStatus(false, 'disconnected'));
-  ws.addEventListener('error', () => setStatus(false, 'error'));
-  ws.addEventListener('message', (event) => term.write(event.data));
+  function connect() {
+    ws = new WebSocket(proto + location.host);
+
+    ws.addEventListener('open', () => {
+      setStatus(true, 'connected');
+      term.reset(); // clear terminal to prepare for server buffer
+      fitAddon.fit();
+      sendResize();
+    });
+    
+    ws.addEventListener('close', () => {
+      setStatus(false, 'disconnected (reconnecting...)');
+      setTimeout(connect, 3000);
+    });
+    
+    ws.addEventListener('error', () => setStatus(false, 'error'));
+    ws.addEventListener('message', (event) => term.write(event.data));
+  }
+
+  connect();
 
   // --- Ctrl toggle for mobile: next keystroke becomes Ctrl+<key> ---
   let ctrlActive = false;

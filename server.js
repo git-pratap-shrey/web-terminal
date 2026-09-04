@@ -80,8 +80,14 @@ server.on('upgrade', (req, socket, head) => {
   });
 });
 
-wss.on('connection', (ws) => {
-  const term = pty.spawn(TERM_CMD, TERM_ARGS, {
+let globalTerm = null;
+const activeSockets = new Set();
+let termBuffer = '';
+
+function getTerm() {
+  if (globalTerm) return globalTerm;
+
+  globalTerm = pty.spawn(TERM_CMD, TERM_ARGS, {
     name: 'xterm-256color',
     cols: 80,
     rows: 24,
@@ -89,13 +95,34 @@ wss.on('connection', (ws) => {
     env: process.env,
   });
 
-  term.onData((data) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(data);
+  globalTerm.onData((data) => {
+    termBuffer += data;
+    if (termBuffer.length > 100000) {
+      termBuffer = termBuffer.slice(-100000);
+    }
+    for (const ws of activeSockets) {
+      if (ws.readyState === WebSocket.OPEN) ws.send(data);
+    }
   });
 
-  term.onExit(() => {
-    if (ws.readyState === WebSocket.OPEN) ws.close();
+  globalTerm.onExit(() => {
+    globalTerm = null;
+    termBuffer = '';
+    for (const ws of activeSockets) {
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+    }
   });
+
+  return globalTerm;
+}
+
+wss.on('connection', (ws) => {
+  activeSockets.add(ws);
+  const term = getTerm();
+
+  if (termBuffer) {
+    ws.send(termBuffer);
+  }
 
   ws.on('message', (raw) => {
     let msg;
@@ -112,7 +139,9 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('close', () => term.kill());
+  ws.on('close', () => {
+    activeSockets.delete(ws);
+  });
 });
 
 server.listen(PORT, '0.0.0.0', () => {

@@ -6,7 +6,8 @@ xterm.js on the frontend, `node-pty` + WebSocket on the backend. Runs your actua
 
 ## Setup (in WSL / Ubuntu)
 
-1. `node-pty` needs to compile a native module, so make sure build tools are present:
+1. `node-pty` needs to compile a native module, so make sure bui
+ld tools are present:
    ```bash
    sudo apt update && sudo apt install -y python3 make g++
    ```
