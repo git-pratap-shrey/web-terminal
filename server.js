@@ -1,0 +1,123 @@
+require('dotenv').config();
+
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
+const pty = require('node-pty');
+const path = require('path');
+const crypto = require('crypto');
+const session = require('express-session');
+
+const PORT = process.env.PORT || 3000;
+const TERM_PASS = process.env.TERM_PASS;
+
+if (!TERM_PASS) {
+  console.error('Error: TERM_PASS is not set. Add it to your .env file.');
+  process.exit(1);
+}
+
+// What to run when a browser connects. Defaults to your login shell.
+// Set TERM_CMD="ssh user@remotehost" to make this a web SSH client instead.
+const TERM_CMD = process.env.TERM_CMD || process.env.SHELL || 'bash';
+const TERM_ARGS = (process.env.TERM_ARGS || '').split(' ').filter(Boolean);
+
+const app = express();
+
+// Single session middleware instance — reused for the WebSocket upgrade guard.
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'strict' },
+});
+
+function isAuthenticated(req) {
+  return req.session.authenticated === true;
+}
+
+app.use(sessionMiddleware);
+app.use(express.urlencoded({ extended: false }));
+
+// --- Auth routes ---
+
+app.get('/login', (req, res) => {
+  if (isAuthenticated(req)) return res.redirect('/');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/login', (req, res) => {
+  if (req.body.password === TERM_PASS) {
+    req.session.authenticated = true;
+    return res.redirect('/');
+  }
+  res.redirect('/login?error=1');
+});
+
+// --- Protected terminal page ---
+
+app.get('/', (req, res) => {
+  if (!isAuthenticated(req)) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Static assets (style.css, app.js) — not sensitive, safe to serve openly.
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- HTTP server + WebSocket ---
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ noServer: true });
+
+// Guard WebSocket upgrades: run the same session middleware so we can
+// read the cookie and reject unauthenticated connections before spawning a PTY.
+server.on('upgrade', (req, socket, head) => {
+  sessionMiddleware(req, {}, () => {
+    if (!isAuthenticated(req)) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  });
+});
+
+wss.on('connection', (ws) => {
+  const term = pty.spawn(TERM_CMD, TERM_ARGS, {
+    name: 'xterm-256color',
+    cols: 80,
+    rows: 24,
+    cwd: process.env.HOME,
+    env: process.env,
+  });
+
+  term.onData((data) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(data);
+  });
+
+  term.onExit(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+  });
+
+  ws.on('message', (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return; // ignore anything malformed
+    }
+
+    if (msg.type === 'input') {
+      term.write(msg.data);
+    } else if (msg.type === 'resize' && msg.cols && msg.rows) {
+      term.resize(msg.cols, msg.rows);
+    }
+  });
+
+  ws.on('close', () => term.kill());
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Web terminal running: http://localhost:${PORT}`);
+  console.log(`Running command: ${TERM_CMD} ${TERM_ARGS.join(' ')}`);
+  console.log('Password protection: ENABLED');
+});

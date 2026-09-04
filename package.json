@@ -1,0 +1,16 @@
+{
+  "name": "web-terminal",
+  "version": "1.0.0",
+  "description": "Minimal mobile-friendly web terminal (xterm.js + node-pty)",
+  "main": "server.js",
+  "scripts": {
+    "start": "./start.sh"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "express-session": "^1.18.1",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Terminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <span id="status-dot" class="dot offline"></span>
+      <span id="status-text">connecting…</span>
+    </header>
+
+    <div id="term-container"></div>
+
+    <div id="keybar">
+      <button data-key="ctrl" id="ctrl-btn">Ctrl</button>
+      <button data-key="tab">Tab</button>
+      <button data-key="esc">Esc</button>
+      <button data-key="up">&#8593;</button>
+      <button data-key="down">&#8595;</button>
+      <button data-key="left">&#8592;</button>
+      <button data-key="right">&#8594;</button>
+      <button data-key="ctrlc">^C</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
