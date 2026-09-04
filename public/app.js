@@ -94,12 +94,23 @@
   });
 
   // --- Resize handling: window resize + mobile keyboard show/hide ---
+  const appEl = document.getElementById('app');
   function refit() {
+    if (window.visualViewport) {
+      // Fix mobile keyboard pushing the extra buttons down
+      appEl.style.height = window.visualViewport.height + 'px';
+      
+      // Also scroll to top to prevent the layout viewport from being shifted
+      window.scrollTo(0, 0);
+    }
     fitAddon.fit();
     sendResize();
   }
+  
   window.addEventListener('resize', refit);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', refit);
+    // Initial set
+    appEl.style.height = window.visualViewport.height + 'px';
   }
 })();

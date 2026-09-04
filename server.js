@@ -17,9 +17,8 @@ if (!TERM_PASS) {
 }
 
 // What to run when a browser connects. Defaults to your login shell.
-// Set TERM_CMD="ssh user@remotehost" to make this a web SSH client instead.
-const TERM_CMD = process.env.TERM_CMD || process.env.SHELL || 'bash';
-const TERM_ARGS = (process.env.TERM_ARGS || '').split(' ').filter(Boolean);
+const TERM_CMD = process.env.SHELL || 'bash';
+const TERM_ARGS = [];
 
 const app = express();
 
