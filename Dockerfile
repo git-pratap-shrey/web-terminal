@@ -6,13 +6,15 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    zsh
+    openssh-client
 
 COPY package*.json ./
 
 RUN npm ci
 
 COPY . .
+
+RUN mkdir -p /data/ssh
 
 EXPOSE 3000
 

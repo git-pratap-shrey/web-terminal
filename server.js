@@ -16,9 +16,21 @@ if (!TERM_PASS) {
   process.exit(1);
 }
 
-// What to run when a browser connects. Defaults to your login shell.
-const TERM_CMD = process.env.SHELL || 'bash';
-const TERM_ARGS = [];
+// What to run when a browser connects.
+// If SSH_HOST is set (Docker mode), hop into the host over SSH so you get your
+// real host shell. Otherwise run the local login shell exactly as before.
+const SSH_HOST = process.env.SSH_HOST;
+const TERM_CMD = SSH_HOST ? 'ssh' : (process.env.SHELL || 'bash');
+const TERM_ARGS = SSH_HOST
+  ? [
+      '-tt',
+      '-i', process.env.SSH_KEY || '/keys/id_ed25519',
+      '-o', 'StrictHostKeyChecking=accept-new',
+      '-o', 'UserKnownHostsFile=/data/ssh/known_hosts',
+      '-o', 'ServerAliveInterval=30',
+      `${process.env.SSH_USER}@${SSH_HOST}`,
+    ]
+  : [];
 
 const app = express();
 
