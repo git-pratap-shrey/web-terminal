@@ -5,7 +5,8 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     make \
-    g++
+    g++ \
+    zsh
 
 COPY package*.json ./
 
